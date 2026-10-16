@@ -1,0 +1,194 @@
+      subroutine readin(file)
+
+c-- Read the input file and the data files specified
+c
+
+      include 'svb.h'
+
+      real bcoff, coloff
+      real dum(NCOLX,NROWX)
+      real sum,summ,sumc,sumcm,add,addm,addc,addcm,dph
+      character*80 file
+
+      open(10,status='OLD',file=file,err=990)
+      read(10,*)
+      read(10,*)
+      read(10,*)
+      read(10,'(13x,a40)') ident
+      read(10,'(13x,f10.5)') period
+      read(10,'(13x,a40)') colsys
+      read(10,'(13x,f10.5)') ebv
+      read(10,'(13x,f10.5)') dabsorb
+      read(10,'(13x,f10.5)') ecolbv
+      read(10,'(13x,f10.5)') gamma
+      read(10,'(13x,f10.5)') pfac
+      read(10,'(13x,i10)') accterm
+      read(10,'(13x,f10.5)') inmass
+      read(10,'(13x,f10.5)') inlogg
+      read(10,'(13x,i10)')   ngiter
+      read(10,'(13x,f10.5)') phmin1
+      read(10,'(13x,f10.5)') phmax1
+      read(10,'(13x,f10.5)') phmin2
+      read(10,'(13x,f10.5)') phmax2
+      read(10,'(13x,a80)') magfile
+      read(10,'(13x,a80)') rvfile
+      read(10,'(13x,a80)') rvcfile
+      read(10,'(13x,a80)') syntab
+      read(10,'(13x,a80)') outfile
+      read(10,'(13x,a80)') logfile
+      read(10,'(13x,i10)') bisector
+      read(10,'(13x,a40)') ctrel
+
+      close(10)
+
+c-- Read the photometry data file. Note that error estimates are needed
+c   for all values
+
+      open(10,status='OLD',file=magfile,err=990)
+      do 100 i=1,NPTSX
+         read(10,*,END=101,err=999) phmag(i),mag(i),
+     +        smag(i),color(i),scolor(i)
+  100 continue
+  101 continue
+      nmag=i-1
+      close(10)
+
+c-- Deredden the magnitudes and colors
+c
+      do 105 i=1,nmag
+	 mag(i) = mag(i) - dabsorb*ebv
+	 color(i) = color(i) - ecolbv*ebv
+  105 continue
+
+c-- To complete the phase we append the first value at the end of the array
+c
+      phmag(nmag+1) = phmag(1) + 1.
+      mag(nmag+1) = mag(1)
+      color(nmag+1) = color(1)
+
+c-- Compute the intensity and magnitude averaged colors and magnitudes
+c   
+      sum = 0.
+      summ = 0.
+      sumc = 0.
+      sumcm = 0.
+      do 110 i=1,nmag
+	 add = (10**(mag(i)/-2.5) + 10**(mag(i+1)/-2.5))/2.
+	 addm = (mag(i) + mag(i+1))/2.
+	 addc = (10**(color(i)/-2.5) + 10**(color(i+1)/-2.5))/2.
+	 addcm = (color(i)+color(i+1))/2.
+         dph = phmag(i+1) - phmag(i)
+	 sum = sum+dph*add
+	 summ = summ + dph*addm
+	 sumc = sumc+dph*addc
+	 sumcm = sumcm+dph*addcm
+c	 write(*,*) phmag(i),mag(i),color(i),dph,addm,summ
+  110 continue
+
+c-- Convert to magnitudes again
+c
+      mmag0 = -2.5*log10(sum)
+      mmag0m = summ
+      mcolor0 = -2.5*log10(sumc)
+      mcolor0m = sumcm
+
+c      write(*,*) mmag0,mmag0m,mcolor0,mcolor0m
+     
+c-- Read the rv data file
+c
+      open(10,status='OLD',file=rvfile,err=990)
+      do 115 i=1,NPTSX
+	 read(10,*,END=116,err=999) phrv(i),rv(i),srv(i)
+  115 continue
+  116 continue
+      nrv=i-1
+      close(10)
+     
+c-- Read the smoothed rv data file
+c
+      open(10,status='OLD',file=rvcfile)
+      do 120 i=1,NPTSX
+	 read(10,*,END=121,err=999) phrvc(i),rvc(i),srvc(i)
+  120 continue
+  121 continue
+      nrvc=i-1
+      phrvc(nrvc+1)=phrvc(1)+1.0
+      rvc(nrvc+1)=rvc(1)
+      srvc(nrvc+1)=srvc(1)
+      close(10)
+     
+c-- Check the type of color temperature relation and proceed
+c   accordingly
+c      if(ctrel .ne. 'tabular') goto 1000
+
+c-- Read the synthetic color file
+c
+
+      open(10,status='OLD',file=syntab,err=990)
+
+      read(10,'(a40)') synid
+      read(10,*) ncol,nrow
+
+      read(10,*,err=999) (temps(i),i=1,nrow)
+
+      do 130 i=1,nrow
+	 ths(i)=5040./temps(i)
+  130 continue
+
+      read(10,*,err=999) (loggs(i),i=1,ncol)
+
+c-- Read the offset of the bolometric correction (to be added to
+c   get observable BC)
+c
+      read(10,*,err=999) bcoff
+
+c-- Read the synthetic BC and add the offset
+c
+      do 150 i=1,nrow
+	 read(10,*,err=999) (dum(j,i),j=1,ncol)
+  150 continue
+      do 155 i=1,nrow
+         do 155 j=1,ncol
+         bcg((i-1)*ncol+j)=dum(j,i) + bcoff
+  155 continue
+
+c-- Read the offset of the colors
+c
+      read(10,*,err=999) coloff
+
+c-- Read the synthetic colors and add the offset
+c
+      do 160 i=1,nrow
+	 read(10,*,err=999) (dum(j,i),j=1,ncol)
+  160 continue
+      do 165 i=1,nrow
+         do 165 j=1,ncol
+         colg((i-1)*ncol+j)=dum(j,i) + coloff
+  165 continue
+
+      close(10)
+
+      if(pfac .le. 0.00001) then
+c Gieren et al. relation:
+c         pfac = 1.58 - 0.15 * log10(period)
+c Nardetto et al. relation:
+c         pfac = 1.366 - 0.075 * log10(period)
+c Classical relation:
+         pfac = 1.39 - 0.03 * log10(period)
+c new test
+c         pfac = 1.34 - 0.15 * log10(period)
+      endif
+
+      goto 1000
+
+  990 continue
+      write(nstdout,'(''ERROR: opening file'')')
+      stop
+  999 continue
+      write(nstdout,'(''ERROR: readin error while reading file'')')
+      stop
+
+ 1000 continue
+
+      return
+      end

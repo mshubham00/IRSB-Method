@@ -1,0 +1,368 @@
+      subroutine readin(file)
+c -- Testing the pfactor relation based on (V-K)0 color
+c
+
+c-- Read the input file and the data files specified
+c
+
+      include 'svb.h'
+
+      real bcoff, coloff
+      real dum(NCOLX,NROWX)
+      real sum,summ,sumc,sumcm,add,addm,addc,addcm,dph
+      real apfac,bpfac
+      real fase,colx,frc
+      integer idx
+      character*80 file,pfacdat
+
+c      pfacdat="/home/storm/bin/pfac.dat"
+c      open(10,status='OLD',file=pfacdat,err=990)
+c      read(10,*) apfac
+c      read(10,*) bpfac
+c      close(10)
+
+      open(10,status='OLD',file=file,err=990)
+      read(10,*)
+      read(10,*)
+      read(10,*)
+      read(10,'(13x,a40)') ident
+      read(10,'(13x,f10.5)') period
+      read(10,'(13x,a40)') colsys
+      read(10,'(13x,f10.5)') ebv
+      read(10,'(13x,f10.5)') dabsorb
+      read(10,'(13x,f10.5)') ecolbv
+      read(10,'(13x,f10.5)') gamma
+      read(10,'(13x,f10.5)') pfac
+      read(10,'(13x,i10)') accterm
+      read(10,'(13x,f10.5)') inmass
+      read(10,'(13x,f10.5)') inlogg
+      read(10,'(13x,i10)')   ngiter
+      read(10,'(13x,f10.5)') phmin1
+      read(10,'(13x,f10.5)') phmax1
+      read(10,'(13x,f10.5)') phmin2
+      read(10,'(13x,f10.5)') phmax2
+      read(10,'(13x,a80)') magfile
+      read(10,'(13x,a80)') rvfile
+      read(10,'(13x,a80)') rvcfile
+      read(10,'(13x,a80)') syntab
+      read(10,'(13x,a80)') outfile
+      read(10,'(13x,a80)') logfile
+      read(10,'(13x,i10)') bisector
+      read(10,'(13x,a40)') ctrel
+      read(10,'(13x,a40)') pfacrel
+      read(10,'(13x,a40)') Massrel
+
+      close(10)
+
+c-- Read the photometry data file. Note that error estimates are needed
+c   for all values
+
+      open(10,status='OLD',file=magfile,err=990)
+      do 100 i=1,NPTSX
+         read(10,*,END=101,err=999) phmag(i),mag(i),
+     +        smag(i),color(i),scolor(i)
+c Convert simply CTIO to Johnson K
+c         color(i)=color(i)-0.02
+  100 continue
+  101 continue
+      nmag=i-1
+      close(10)
+
+c-- Deredden the magnitudes and colors
+c
+      do 105 i=1,nmag
+	 mag(i) = mag(i) - dabsorb*ebv
+	 color(i) = color(i) - ecolbv*ebv
+  105 continue
+
+c-- To complete the phase we append the first value at the end of the array
+c
+      phmag(nmag+1) = phmag(1) + 1.
+      mag(nmag+1) = mag(1)
+      color(nmag+1) = color(1)
+
+c-- Compute the intensity and magnitude averaged colors and magnitudes
+c   
+      sum = 0.
+      summ = 0.
+      sumc = 0.
+      sumcm = 0.
+      do 110 i=1,nmag
+	 add = (10**(mag(i)/(-2.5)) + 10**(mag(i+1)/(-2.5)))/2.
+	 addm = (mag(i) + mag(i+1))/2.
+	 addc = (10**(color(i)/(-2.5)) +
+     +           10**(color(i+1)/(-2.5)))/2.
+	 addcm = (color(i)+color(i+1))/2.
+         dph = phmag(i+1) - phmag(i)
+	 sum = sum+dph*add
+	 summ = summ + dph*addm
+	 sumc = sumc+dph*addc
+	 sumcm = sumcm+dph*addcm
+c	 write(*,*) phmag(i),mag(i),color(i),dph,addm,summ
+  110 continue
+
+c-- Convert to magnitudes again
+c
+      mmag0 = -2.5*log10(sum)
+      mmag0m = summ
+      mcolor0 = -2.5*log10(sumc)
+      mcolor0m = sumcm
+
+c-- The mcolor0 can be used for a global p-factor based on (V-K) color
+
+c      write(*,*) mmag0,mmag0m,mcolor0,mcolor0m
+     
+c-- Read the rv data file
+c
+      open(10,status='OLD',file=rvfile,err=990)
+      do 115 i=1,NPTSX
+	 read(10,*,END=116,err=999) phrv(i),rv(i),srv(i)
+  115 continue
+  116 continue
+      nrv=i-1
+      close(10)
+     
+c-- Read the smoothed rv data file
+c
+      open(10,status='OLD',file=rvcfile)
+      do 120 i=1,NPTSX
+	 read(10,*,END=121,err=999) phrvc(i),rvc(i),srvc(i)
+  120 continue
+  121 continue
+      nrvc=i-1
+c      phrvc(nrvc+1)=phrvc(1)+1.0
+c      rvc(nrvc+1)=rvc(1)
+c      srvc(nrvc+1)=srvc(1)
+      close(10)
+     
+c-- Check the type of color temperature relation and proceed
+c   accordingly
+c      if(ctrel .ne. 'tabular') goto 1000
+
+c-- Read the synthetic color file
+c
+
+      open(10,status='OLD',file=syntab,err=990)
+
+      read(10,'(a40)') synid
+      read(10,*) ncol,nrow
+
+      read(10,*,err=999) (temps(i),i=1,nrow)
+
+      do 130 i=1,nrow
+	 ths(i)=5040./temps(i)
+  130 continue
+
+      read(10,*,err=999) (loggs(i),i=1,ncol)
+
+c-- Read the offset of the bolometric correction (to be added to
+c   get observable BC)
+c
+      read(10,*,err=999) bcoff
+
+c-- Read the synthetic BC and add the offset
+c
+      do 150 i=1,nrow
+	 read(10,*,err=999) (dum(j,i),j=1,ncol)
+  150 continue
+      do 155 i=1,nrow
+         do 152 j=1,ncol
+            bcg((i-1)*ncol+j)=dum(j,i) + bcoff
+  152    continue
+  155 continue
+
+c-- Read the offset of the colors
+c
+      read(10,*,err=999) coloff
+
+c-- Read the synthetic colors and add the offset
+c
+      do 160 i=1,nrow
+	 read(10,*,err=999) (dum(j,i),j=1,ncol)
+  160 continue
+      do 165 i=1,nrow
+         do 162 j=1,ncol
+            colg((i-1)*ncol+j)=dum(j,i) + coloff
+  162    continue
+  165 continue
+
+      close(10)
+c-- The pfactor can be phase dependent but this is not implemented yet
+c   The pfactor can be entered as number which overrrides the p-factor
+c   relation pfacrel
+
+c--   
+      if(pfacrel .eq. 'Storm11') then
+         apfac=-0.186
+         bpfac=1.55
+      elseif(pfacrel .eq. 'Groenewegen') then
+         apfac=-0.240
+         bpfac=1.50
+      elseif(pfacrel .eq. 'Nardetto') then
+         apfac=-0.08
+         bpfac=1.31
+      elseif(pfacrel .eq. 'RRLyr') then
+         apfac=0.0
+         bpfac=1.30
+      elseif(pfacrel .eq. 'DR3linp018') then
+         apfac=-0.265
+         bpfac=1.660
+      elseif(pfacrel .eq. 'DR3linp018v2') then
+         apfac=-0.308
+         bpfac=1.709
+      elseif(pfacrel .eq. 'DR3linm014') then
+         apfac=-0.216
+         bpfac=1.715
+      elseif(pfacrel .eq. 'LMC_ECB') then
+         apfac=-0.187
+         bpfac=1.533
+      elseif(pfacrel .eq. 'LMC_ECB_VK0') then
+         avkpfac=-0.293
+         bvkpfac=1.308
+         VKpivot=1.6
+      endif
+        
+c-- Note that svb uses the smoothed rv curve (rvc)
+      if(pfac .ge. 0.0001) then
+        do 200 i=1,nrvc
+           pfactor(i) = pfac
+           pfacrel = 'None'
+  200   continue
+      elseif(pfac .le. 0.00001 .and. pfac .gt. -1.9) then
+        do 210 i=1,nrvc
+           if(pfacrel .eq. 'bimod01') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.60
+              else
+                 pfactor(i) = 1.41
+              endif
+           elseif(pfacrel .eq. 'bimod000') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.610
+              else
+                 pfactor(i) = 1.377
+              endif
+c-- bi-modal based on Owens+22 Gaia zero point +0.018
+           elseif(pfacrel .eq. 'bimodp018') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.562
+              else
+                 pfactor(i) = 1.317
+              endif
+c-- bi-modal based on Riess+21 Gaia zero point -0.014
+           elseif(pfacrel .eq. 'bimodm014') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.600
+              else
+                 pfactor(i) = 1.415
+              endif
+c-- bi-modal based on reasonable guess to reach canonical 
+c   LMC modulus (+0.020)
+           elseif(pfacrel .eq. 'bimodp020') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.560
+              else
+                 pfactor(i) = 1.310
+              endif
+c-- bi-modal based on reasonable guess to reach canonical 
+c   LMC modulus (+0.022)
+           elseif(pfacrel .eq. 'bimodp022') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.550
+              else
+                 pfactor(i) = 1.300
+              endif
+c-- bi-modal based on reasonable guess to reach canonical 
+c   LMC modulus (+0.025)
+           elseif(pfacrel .eq. 'bimodp025') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.543
+              else
+                 pfactor(i) = 1.296
+              endif
+c-- bi-modal based on reasonable guess to reach canonical 
+c   LMC modulus (+0.030)
+           elseif(pfacrel .eq. 'bimodp030') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.531
+              else
+                 pfactor(i) = 1.281
+              endif
+c-- bi-modal based on reasonable guess to reach canonical 
+c   LMC modulus (+0.037)
+           elseif(pfacrel .eq. 'bimodp037') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.514
+              else
+                 pfactor(i) = 1.260
+              endif
+c-- bi-modal based on reasonable guess to reach canonical 
+c   LMC modulus (+0.040)
+           elseif(pfacrel .eq. 'bimodp040') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.507
+              else
+                 pfactor(i) = 1.270
+              endif
+c-- bi-modal based on reasonable guess to reach canonical 
+c   LMC modulus (+0.060)
+           elseif(pfacrel .eq. 'bimodp060') then
+              if(log10(period) .lt. 0.9) then
+                 pfactor(i) = 1.461
+              else
+                 pfactor(i) = 1.217
+              endif
+c-- (V-K)_0 based 
+c   LMC modulus (+0.060)
+           elseif(pfacrel .eq. 'LMC_ECB_VK0') then
+                 pfactor(i) = bvkpfac + avkpfac*(mcolor0 - VKpivot)
+           else
+              pfactor(i) = bpfac + apfac * log10(period)
+           endif
+  210   continue
+        pfac=pfactor(1)
+      elseif(pfac .le. -1.5) then
+        do 220 i=1,nrvc
+          fase=phrvc(i)
+          if(fase .lt. phmag(1)) then
+             frc=(fase+(1.-phmag(nmag)))/(phmag(1)+(1-phmag(nmag)))
+             colx=color(nmag)+frc*(color(1)-color(nmag))
+             pfactor(i) = bpfac + apfac*colx
+             goto 220
+          endif
+          if(fase .ge. phmag(nmag)) then
+             frc=(fase-phmag(nmag))/(phmag(1)+(1-phmag(nmag)))
+             colx=color(nmag)+frc*(color(1)-color(nmag))
+             pfactor(i) = bpfac + apfac*colx
+             goto 220
+          endif
+          do 218 j=1,nmag
+             if(fase .gt. phmag(j) .and. fase .le. phmag(j+1)) then
+                idx=j
+                frc=(fase-phmag(idx))/(phmag(idx+1)-phmag(idx))
+                colx=color(idx)+frc*(color(idx+1)-color(idx))
+c                write(*,*) idx,fase,phmag(idx),phmag(idx+1),
+c     +                     color(idx),color(idx+1)
+                pfactor(i) = bpfac + apfac*colx
+             endif
+  218     continue
+  220   continue	
+      endif
+
+c      do 230 i=1,nrv
+c        write(*,*) i,bpfac,apfac,colx,pfactor(i)
+c  230 continue	
+
+      goto 1000
+
+  990 continue
+      write(nstdout,'(''ERROR: opening file'')')
+      stop
+  999 continue
+      write(nstdout,'(''ERROR: readin error while reading file'')')
+      stop
+
+ 1000 continue
+
+      return
+      end

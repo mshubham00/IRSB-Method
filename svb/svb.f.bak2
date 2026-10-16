@@ -1,0 +1,517 @@
+      program svb
+c
+c Baade-Wesselink analysis program based on the surface brightness
+c variant.
+c Enhanced version which also applies the Fouque and Gieren relation
+c Nov.23, 1997: Uses the Isobe et al. FORTRAN code for the linear
+c               regression and in particular the error estimates
+c               for the OLS fits.
+c Dec.2, 1997: Computes the Teff values at a given phase for the
+c              analytic version of the Sv-brightness calibration
+c              (Fouque and Gieren 1997 calibration)
+c Dec.9, 1997: Changed computation of Mbol to use phased bolometric
+c              corrections
+c======================================================================
+c Author: Jesper Storm               | email: jstorm@eso.org
+c At: European Southern Observatory  |
+c Date: March 1995                   | Version 0.1
+c At: Astrophysikalisches Institut   |
+c     Potsdam                        |
+c Date: November 1997                | Version 1.0
+c Date: December 1997                | Version 1.1
+c======================================================================
+
+      include 'svb.h'
+      real*8 af(6),sigaf(6),bf(6),sigbf(6)
+      real*8 x(NPTSX),y(NPTSX),sy(NPTSX)
+      real*8 xf(NPTSX),yf(NPTSX)
+      real*8 xmin,xmax,ymin,ymax
+      real magbol(NPTSX),sumbol
+      real tarr(NPTSX)
+      real Mbol,mM,Lum,logg,Mv0
+      real phase,phref
+      real dr(NPTSX),loggx(NPTSX)
+      real diffmin,Ttol,Teq,dist,g
+      real a,siga,b,sigb,reg,sigdist
+      real xm,ym
+      real sigm2,sigthp,dph,add
+      real dist1,dist2,r1,r2,d1,d2
+      integer niter
+      logical fita,fitb
+
+      Msol=1.989e30
+      Rsol=6.96e8
+      Lsol=3.83e26
+      gc=6.67e-11
+      sbc=5.67e-8
+      pi=3.14159
+      Sv0=42.16
+      mpc=3.08e16
+      fita=.TRUE.
+      fitb=.TRUE.
+      niter=0
+
+c-- The acceptable temperature difference for convergence on BC
+c   iteration
+
+      Ttol=5
+
+      write(stdout,'(''Enter input file name: '',$)')
+      read(stdin,'(a)') infile
+
+c-- Read the input file and load the arrays with the data from
+c   the various tables
+c
+      call readin(infile)
+
+   10 continue     
+
+c-- Open the output file
+c
+      fdout=10
+      open(fdout,status='UNKNOWN',FILE=outfile)
+
+c-- Compute the pulsational velocity (in m/s) (For common block)
+c
+      do 40 i=1,nrvc
+	 pv(i) = pfac * (rvc(i) - gamma) * 1000.
+   40 continue
+
+c-- Determine the radius change array (dr)
+c
+
+      phr=0.0
+      dphx=1./nrvc
+      do 50 i=1,nrvc
+	 ph=(i-1)*dphx
+	 call drspec(ph,phr,sum,iflag)
+	 dr(i)=sum
+   50 continue
+
+c-- Find phase of average radius 
+c   i.e the points where the integral of dR cancels.
+c
+c-- First we compute the total integral
+
+      sum=0
+      do 70 i=1,nrvc
+	 sum=sum+dr(i)
+   70 continue
+
+c-- Then we subtract the average dR from each dr value and finds the
+c   value closest to the average value which will be considered the
+c   reference phase.
+
+      sum=sum/nrvc
+      diffmin=1e15
+
+      do 80 i=1,nrvc
+	 diff =abs(dr(i)-sum)
+	 if(diff .lt. diffmin) then
+	     diffmin=diff
+	     j=i
+         endif
+   80 continue
+	 
+      phref=phrvc(j)
+
+c-- Compute first guess on the effective temperature
+
+      call int1d(nmag,phmag,color,phref,colref,iflag)
+      call gett(ncol,nrow,loggs,ths,colg,inlogg,colref,teff,iflag)
+
+
+c-- Compute first guess on average radius (in m) at the above phase
+c
+      Rref = sqrt(gc*inmass*Msol*100./(10**(inlogg)))
+
+c***********************************************************************
+c-- Here starts the loop over logg
+c
+
+  100 continue
+
+      nwarn=0
+c-- Now prepare the two arrays for linear regression looping over 
+c   the photometric data and selecting only the values in the
+c   interval specified by phmin and phmax
+c
+      
+      j=0
+      xm=0.
+      ym=0.
+      xmax=-1e10
+      xmin=1e10
+      ymax=-1e10
+      ymin=1e10
+      sigthp=0.001
+      do 200 i=1,nmag
+	 phase=phmag(i)
+	 if((phase .ge. phmin1 .and. phase .le. phmax1) .or.
+     +	    (phase .ge. phmin2 .and. phase .le. phmax2)) then
+	    j=j+1
+	    call getg(phase,phref,Rref,logg,iflag)
+
+	    if(ctrel .eq. 'FG_linearVVK') then
+	      thetap = 10**(0.5474 - 0.2*mag(i) + 0.262*color(i))
+              sigthp = sqrt((0.2*smag(i))**2 + (0.262*scolor(i))**2)
+     +                 * thetap / log(10.)
+	    elseif(ctrel .eq. 'FG_linearVVR') then
+	      thetap=10**(0.5474 - 0.2*mag(i) + 0.760*color(i))
+              sigthp = sqrt((0.2*smag(i))**2 + (0.760*scolor(i))**2)
+     +                 * thetap / log(10.)
+	    elseif(ctrel .eq. 'FG_linearKJK') then
+	      thetap = 10**(0.5474 - 0.2*mag(i) + 0.220*color(i))
+              sigthp = sqrt((0.2*smag(i))**2 + (0.220*scolor(i))**2)
+     +                 * thetap / log(10.)
+	    elseif(ctrel .eq. 'tabular') then
+	      call thphot(phase,logg,thetap)
+	    else
+	      write(stdout,'(''ERROR: No valid color-temperature '',
+     +	      '' relation specified'')')
+	    endif
+
+	    call drspec(phase,phref,sum,iflag)
+	    x(j)=1d0*sum
+	    y(j)=1d0*thetap/1000.
+            sy(j)=1d0*sigthp/1000.
+
+	    loggx(j)=logg
+c	    write(*,*) phmag(j),x(j),y(j),sy(j),logg
+c-- Compute statistics for scaling procedure
+c
+	    xm=xm+x(j)
+	    ym=ym+y(j)
+            if(x(j) .gt. xmax) then
+               xmax=x(j)
+            endif
+            if(x(j) .lt. xmin) then
+               xmin=x(j)
+            endif
+            if(y(j) .gt. ymax) then
+               ymax=y(j)
+            endif
+            if(y(j) .lt. ymin) then
+               ymin=y(j)
+            endif
+         endif
+  200 continue
+      nfit=j
+      xm=xm/nfit
+      ym=ym/nfit
+
+c-- We rescale everything to avoid overflow in the fits (critical)
+      dx=xmax-xmin
+      dy=ymax-ymin
+      do 230 i=1,nfit
+         xf(i)=(x(i)-xm)/dx
+         yf(i)=(y(i)-ym)/dy
+  230 continue
+         
+c-- If the bisector fit is requested compute the relevant slopes
+c   and intercepts.
+c
+c   See Isobe et al. ApJ, 1990, vol.364, p.104 for further details
+c
+      call sixlin(NPTSX,nfit,xf,yf,af,sigaf,bf,sigbf)
+       
+c-- Check for the bisector flag and convert back to non-scaled
+c   quantities
+c
+      if(bisector .eq. 1) then
+         b=bf(3)*dy/dx
+         sigb=sigbf(3)*dy/dx
+         a=af(3)*dy+ym-bf(3)*xm*dy/dx
+         siga=sigaf(3)*dy+sigbf(3)*xm*dy/dx
+      else
+         b=bf(1)*dy/dx
+         sigb=sigbf(1)*dy/dx
+         a=af(1)*dy+ym-bf(1)*xm*dy/dx
+         siga=sigaf(1)*dy+sigbf(1)*xm*dy/dx
+      endif
+
+c-- Fill the arrays for the output including all the available
+c   data points
+c
+      do 260 i=1,nmag
+	 phase=phmag(i)
+	 call getg(phase,phref,Rref,logg,iflag)
+	 if(ctrel .eq. 'FG_linearVVK') then
+	    thetap = 10**(0.5474 - 0.2*mag(i) + 0.262*color(i))
+            sigthp = (0.2*smag(i)+0.262*scolor(i))*thetap/log(10.)
+	 elseif(ctrel .eq. 'FG_linearVVR') then
+	    thetap = 10**(0.5474 - 0.2*mag(i) + 0.760*color(i))
+            sigthp = (0.2*smag(i)+0.760*scolor(i))*thetap/log(10.)
+	 elseif(ctrel .eq. 'FG_linearKJK') then
+	    thetap = 10**(0.5474 - 0.2*mag(i) + 0.220*color(i))
+            sigthp = (0.2*smag(i)+0.220*scolor(i))*thetap/log(10.)
+	 elseif(ctrel .eq. 'tabular') then
+	    call thphot(phase,logg,thetap)
+	 else
+	    write(stdout,'(''ERROR: No valid color-temperature'',
+     +	    ''relation specified'')')
+	 endif
+	 call drspec(phase,phref,sum,iflag)
+	 x(i)=1d0*sum
+	 y(i)=1d0*thetap/1000.
+         sy(i)=1d0*sigthp/1000.
+	 loggx(i)=logg
+  260 continue
+
+c-- Convert thetaphot to radians from arcsec by dividing by 206264
+c
+      d=(2./b)*206264.
+      r=a/b
+      sigr=sqrt(((a/b**2)*sigb)**2 + ((siga/b)**2))
+      dist=d/mpc
+      sigdist=(sigb/b)*dist
+      if(dist .gt. 0.) then
+         mM=5.* log10(dist)-5.
+         sigmM = (sigdist * 5. / log(10.))/dist
+      else
+	 write(stdout,'(''ERROR: Distance negative'')')
+      endif
+c-- Compute the bolometric magnitude for each phase and sum up
+c   (intensity average)
+
+      if(ctrel .eq. 'tabular') then
+       do 320 i=1,nmag
+         phase=phmag(i)
+         logg=loggx(i)
+         call int1d(nmag,phmag,color,phase,colref,iflag)
+         call gett(ncol,nrow,loggs,ths,colg,logg,colref,teff,iflag)
+c	 write(stdout,351) phmag(i),y(i),sy(i),teff,color(i),loggx(i)
+c-- Iterate to get bc right
+         do 310 j=1,10
+           tprev=teff
+           theff=5040./teff
+           call int2d(ncol,nrow,loggs,ths,bcg,logg,theff,bc,flag)
+           magbol(i) = mag(i) + bc - mM
+           Lum = 10**(28.48 - 0.4*magbol(i))
+           rad = r + x(i)
+           teff= sqrt(sqrt(Lum/(4*pi*sbc*rad**2)))
+           tarr(i)=teff
+	   dt = abs(tprev - teff)
+	   if(dt .lt. Ttol) goto 315
+  310    continue
+         write(stdout,'(''Warning: BC iteration failed'')')
+  315    continue
+c	 write(fdout,351) phmag(i),y(i),sy(i),teff,color(i),loggx(i)
+  320  continue
+      else
+       do 350 i=1,nmag
+         phase=phmag(i)
+         logg=loggx(i)
+c-- Again we have to iterate to get bc right
+         do 340 j=1,10
+           tprev=teff
+           theff=5040./teff
+           call int2d(ncol,nrow,loggs,ths,bcg,logg,theff,bc,flag)
+           magbol(i) = mag(i) + bc - mM
+           Lum = 10**(28.48 - 0.4*magbol(i))
+           rad = r + x(i)
+           teff= sqrt(sqrt(Lum/(4*pi*sbc*rad**2)))
+           tarr(i)=teff
+	   dt = abs(tprev - teff)
+	   if(dt .lt. Ttol) goto 341
+  340    continue
+         write(stdout,'(''Warning: BC iteration failed'')')
+  341    continue
+c	 write(fdout,351) phmag(i),y(i),sy(i),teff,color(i),loggx(i)
+  350  continue
+  351 format(f8.5,1x,e10.5,1x,e10.5,1x,f8.1,1x,f7.4,1x,f6.3)
+      endif
+
+      magbol(nmag+1)=magbol(1)
+      phmag(nmag+1)=phmag(1)+1.
+      tarr(nmag+1)=tarr(1)
+      sumbol=0.
+      tmean=0.
+      do 400 i=1,nmag
+	 add = (10**(magbol(i)/-2.5) + 10**(magbol(i+1)/-2.5))/2.
+         dph = phmag(i+1) - phmag(i)
+	 sumbol = sumbol+dph*add
+         tmean = tmean + dph*(tarr(i)+tarr(i+1))/2.
+  400 continue
+      Mbol = -2.5*log10(sumbol)
+
+
+      Mv0 = mmag0 - mM
+      g = 100.*gc*inmass*Msol/r**2
+      if(g .gt. 0.) then
+         logg = log10(g)
+      else
+	 write(stdout,'(''ERROR: g is negative'')')
+      endif
+
+c-- Compute the physical parameters for the equivalent static star
+c   assuming that the radius is the Baade-Wesselink radius.
+
+      Lum = 10**(28.48 - 0.4*Mbol)
+      Teq = sqrt(sqrt(Lum/(4*pi*sbc*r**2)))
+
+c-- Then loop on logg to optimize. And on Mass (?)
+c
+      niter=niter+1
+      if(niter .lt. ngiter) then
+         Rref=r
+         goto 100
+      endif
+
+c End of logg loop
+c***********************************************************************
+
+c-- Write to the stdout the critical output data
+c
+      write(stdout,'(''              ID: '',a40)') ident
+      write(stdout,'(''          (m-M)0: '',f6.3)') mM
+      write(stdout,'(''     sigma(m-M)0: '',f6.3)') sigmM
+      write(stdout,'(''   Radius_(Rsol): '',f6.1)') r/Rsol
+      write(stdout,'(''   sigma(Radius): '',f6.1)') sigr/Rsol
+      write(stdout,'(''           Mbol0: '',f6.3)') Mbol
+      write(stdout,'(''             Mv0: '',f6.3)') Mv0
+      write(stdout,'(''         Teq_(K): '',f7.1)') Teq
+
+c-- Write to the output file all the output data for later inspection
+c   and plotting
+c
+      write(fdout,'(''RESULTS:'')')
+      write(fdout,'(''              ID: '',a40)') ident
+      write(fdout,'(''          colsys: '',a40)') colsys
+      write(fdout,'(''          phmin1: '',f6.3)') phmin1
+      write(fdout,'(''          phmax1: '',f6.3)') phmax1
+      write(fdout,'(''          phmin2: '',f6.3)') phmin2
+      write(fdout,'(''          phmax2: '',f6.3)') phmax2
+      write(fdout,'(''   Period_(days): '',f10.6)') period
+      write(fdout,'(''          (m-M)0: '',f6.3)') mM
+      write(fdout,'(''     sigma(m-M)0: '',f6.3)') sigmM
+      write(fdout,'(''   Distance_(pc): '',f8.1)') d/mpc
+      write(fdout,'(''   Radius_(Rsol): '',f6.1)') r/Rsol
+      write(fdout,'(''   sigma(Radius): '',f6.1)') sigr/Rsol
+      write(fdout,'(''           Mbol0: '',f6.3)') Mbol
+      write(fdout,'(''             Mv0: '',f6.3)') Mv0
+      write(fdout,'(''       in_log(g): '',f6.3)') inlogg
+      write(fdout,'(''      out_log(g): '',f6.3)') logg
+      write(fdout,'(''         in_mass: '',f6.2)') inmass
+      write(fdout,'(''Regression_coeff: '',f6.3)') reg
+      write(fdout,'(''         Teq_(K): '',f7.1)') Teq
+      write(fdout,'(''    gamma_(km/s): '',f7.2)') gamma
+      write(fdout,'(''           <mv>0: '',f6.3)') mmag0
+      write(fdout,'(''        <mv>mag0: '',f6.3)') mmag0m
+      write(fdout,'(''        <color>0: '',f6.3)') mcolor0
+      write(fdout,'(''     <color>mag0: '',f6.3)') mcolor0m
+      write(fdout,'(''          E(B-V): '',f6.3)') ebv
+      write(fdout,'(''          E(col): '',f6.3)') ecolbv*ebv
+      write(fdout,'('' Synthetic_color: '',a40)') synid
+      write(fdout,'(''       Sv_method: '',a40)') ctrel
+      write(fdout,'(''        Warnings: '',i7)') nwarn
+      if(accterm) then
+         write(fdout,'(''       Acc._Term: ON'')')
+      else
+         write(fdout,'(''       Acc._Term: OFF'')')
+      endif
+      if(bisector .eq. 1) then
+         write(fdout,'(''    Bisector_fit: YES'')')
+      else
+         write(fdout,'(''    Bisector_fit: NO'')')
+      endif
+      write(fdout,'(''    N_iterations: '',i7)') ngiter
+
+      write(fdout,'(''END_OF_RESULT'')')
+
+c-- Write out the linear regression data to the output file
+c
+      write(fdout,'(''LINDAT:'')')
+      do 600 i=1,nmag
+	 dy = y(i) - (b*x(i)+a)
+	 write(fdout,601) phmag(i),x(i),y(i),sy(i),dy,loggx(i)
+  600 continue
+  601 format(f6.4,4(1x,e11.4),1x,f6.3)
+      write(fdout,'(''END_OF_LINDAT'')')
+
+c-- Write out the linear fit to the output file
+c
+      write(fdout,'(''LINFIT:'')')
+      xmin=1e15
+      xmax=1e-15
+      do 610 i=1,nmag
+	 if(x(i) .le. xmin) then
+	    xmin=x(i)
+	    j=i
+         elseif(x(i) .ge. xmax) then
+	    xmax=x(i)
+	    k=i
+         endif
+  610 continue
+      write(fdout,*) phmag(j),x(j),b*x(j)+a
+      write(fdout,*) phmag(k),x(k),b*x(k)+a
+      write(fdout,'(''END_OF_LINFIT'')')
+
+c-- Write out the angular diameters (recompute thspec with the
+c   proper reference radius)
+c
+      write(fdout,'(''THSPEC:'')')
+      do 620 i=1,nrvc
+	 phase=phrvc(i)
+	 call drspec(phase,phref,sum,iflag)
+	 thspec=2*(r+sum)*206264./d
+	 write(fdout,*) phrvc(i),thspec
+  620 continue
+      write(fdout,'(''END_OF_THSPEC'')')
+
+      write(fdout,'(''THPHOT:'')')
+c-- For the tabular temperature relation we recompute the corresponding
+c   values. In the case of the Sv calibration of Fouque and Gieren
+c   we compute the effective temperature from the radii derived
+c
+c-- The initial guess for Teff is Teq
+      teff=Teq
+
+      if(ctrel .eq. 'tabular') then
+       do 630 i=1,nmag
+	 phase=phmag(i)
+         logg=loggx(i)
+         call int1d(nmag,phmag,color,phase,colref,iflag)
+         call gett(ncol,nrow,loggs,ths,colg,logg,colref,teff,iflag)
+c	 write(fdout,651) phmag(i),y(i),sy(i),teff,color(i),loggx(i)
+c-- Again we have to iterate to get bc right
+         do 625 j=1,10
+           tprev=teff
+           theff=5040./teff
+           call int2d(ncol,nrow,loggs,ths,bcg,logg,theff,bc,flag)
+           Mbol = mag(i) + bc - mM
+           Lum = 10**(28.48 - 0.4*Mbol)
+           rad = r + x(i)
+           teff= sqrt(sqrt(Lum/(4*pi*sbc*rad**2)))
+	   dt = abs(tprev - teff)
+	   if(dt .lt. Ttol) goto 626
+  625    continue
+         write(stdout,'(''Warning: BC iteration failed'')')
+  626    continue
+	 write(fdout,651) phmag(i),y(i),sy(i),teff,color(i),loggx(i)
+  630  continue
+      else
+       do 650 i=1,nmag
+         logg=loggx(i)
+c-- Again we have to iterate to get bc right
+         do 640 j=1,10
+           tprev=teff
+           theff=5040./teff
+           call int2d(ncol,nrow,loggs,ths,bcg,logg,theff,bc,flag)
+           Mbol = mag(i) + bc - mM
+           Lum = 10**(28.48 - 0.4*Mbol)
+           rad = r + x(i)
+           teff= sqrt(sqrt(Lum/(4*pi*sbc*rad**2)))
+	   dt = abs(tprev - teff)
+	   if(dt .lt. Ttol) goto 641
+  640    continue
+         write(stdout,'(''Warning: BC iteration failed'')')
+  641    continue
+	 write(fdout,651) phmag(i),y(i),sy(i),teff,color(i),loggx(i)
+  650  continue
+  651 format(f8.5,1x,e10.5,1x,e10.5,1x,f8.1,1x,f7.4,1x,f6.3)
+      endif
+      write(fdout,'(''END_OF_THPHOT'')')
+
+      close(fdout)
+      end

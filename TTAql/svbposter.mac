@@ -1,0 +1,65 @@
+svbposter	0	expand 0.8
+
+		lweight 2
+		window 1 2 1 1
+
+		data results.svbplt
+		define phmin1 read 3 2
+		define phmax1 read 4 2
+		define phmin2 read 5 2
+		define phmax2 read 6 2
+		ptype 4 3
+		data ldat.svbplt
+		read dr 2
+		read thphot 3
+		read ph 1
+		limits dr thphot
+		points dr thphot if(ph >= $phmin1 && ph <= $phmax1)
+		points dr thphot if(ph >= $phmin2 && ph <= $phmax2)
+
+		ptype 4 1
+		ctype red
+		points dr thphot if(ph < $phmin1)
+		points dr thphot if(ph > $phmax1 && ph < $phmin2)
+		points dr thphot if(ph > $phmax2)
+		ctype black
+		box
+		xlabel \gDR (m)
+		ylabel \gq\\dphot\\u (arcsec)
+
+		data lfit.svbplt
+		read dr 2
+		read thphot 3
+		read ph 1
+		connect dr thphot
+
+		window 1 2 1 2 
+
+		limits 0 1 0 1
+		relocate 0.05 0.90
+		expand 1.2
+		putlabel 6 TT Aql
+		expand 0.8
+		ptype 4 3
+		data thphot.svbplt
+		read ph 1
+		read thp 2
+		read sthp 3
+		limits -0.1 1.1 thp
+		points ph thp if(ph >= $phmin1 && ph <= $phmax1)
+		points ph thp if(ph >= $phmin2 && ph <= $phmax2)
+
+		ptype 4 1
+		ctype red
+		points ph thp if(ph < $phmin1)
+		points ph thp if(ph > $phmax1 && ph < $phmin2)
+		points ph thp if(ph > $phmax2)
+		ctype black
+		box
+		xlabel Phase
+		ylabel \gq (arcsec)
+
+		data thspec.svbplt
+		read ph 1
+		read thspec 2
+		connect ph thspec

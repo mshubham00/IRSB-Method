@@ -1,0 +1,12 @@
+#!/bin/csh
+set svbdir = ${HOME}/src/svb/scripts
+
+cp ${svbdir}/svb.mac .
+cp ${svbdir}/svbplot .
+cp ${svbdir}/svbplot.awk .
+cp ${svbdir}/svb.in .
+cp ${svbdir}/SvVK.mac .
+cp ${svbdir}/SvFvVKfit .
+
+echo 'A template input file is available in svb.in'
+echo 'Please modify it to reflect your input data'

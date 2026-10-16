@@ -1,0 +1,27 @@
+svb INPUT file Version 2.0
+Do not change anything in this file except the names and numbers
+=====================================================================
+ident      = TTAql
+Period     = 13.75496
+colsys     = V-K
+E(B-V)     = 0.435
+Av/E(B-V)  = 3.30
+Ecol/Ebv   = 3.00
+Gamma      = 4.0473
+P-factor   = 1.33
+Acc. Term  = 0
+Mass_est   = 6.0
+loggest    = 1.7
+N_iteration= 4
+phase_min1 = 0.0
+phase_max1 = 0.4
+phase_min2 = 0.4
+phase_max2 = 0.8
+photdata   = TTAql.phvvk
+rvdata     = TTAql.phrv
+rvcurve    = TTAql.rvc2
+syntab     = ../../../atmos/anneVK_fixed/synvkfieldm00.dat
+output     = TTAql.out
+logfile    = TTAql.log
+Bisectorfit= 1
+ctrel      = Gro08_linearVVK

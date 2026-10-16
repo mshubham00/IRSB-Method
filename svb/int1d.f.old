@@ -1,0 +1,41 @@
+      subroutine int1d(n,arr1,arr2,x,y,iflag)
+
+      integer n,iflag,stdout
+      real arr1(n),arr2(n),x,y
+
+      stdout=6
+
+      iflag=0
+
+c-- Find the appropriate grid points for both the increasing and
+c   decreasing arrays and perform the linear interpolation.
+c
+      do 100 i=1,n-1
+	 if(x .ge. arr1(i) .and. x .le. arr1(i+1)) then
+	    f = (x-arr1(i))/(arr1(i+1)-arr1(i))
+	    y = arr2(i) + f*(arr2(i+1)-arr2(i))
+            write(stdout,*) arr1(i),arr1(i+1),x,f
+            write(stdout,*) arr2(i),arr2(i+1),y
+            return
+	 elseif(x .le. arr1(i) .and. x .ge. arr1(i+1)) then
+	    f = (x-arr1(i))/(arr1(i+1)-arr1(i))
+	    y = arr2(i) + f*(arr2(i+1)-arr2(i))
+            write(stdout,*) arr1(i),arr1(i+1),x,f
+            write(stdout,*) arr2(i),arr2(i+1),y
+            return
+         endif
+  100 continue
+
+c-- In case the interpolation fails, return the relevant minimum or
+c   maximum value together with a flag signaling the failure
+c
+      if(x .lt. arr1(1) .and. x .lt. arr1(n)) then
+	 y=min(arr2(1),arr2(n))
+      elseif(x .gt. arr1(1) .and. x .gt. arr1(n)) then
+	 y=max(arr2(1),arr2(n))
+      endif
+
+      iflag=-1
+
+      return
+      end

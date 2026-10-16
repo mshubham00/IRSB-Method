@@ -1,0 +1,37 @@
+#!/bin/csh -f
+set flag=""
+if($#argv < 1) then
+   goto error
+endif
+
+if($#argv == 2) then
+   set flag=$1
+   shift
+endif
+set infile=$1
+echo $infile $flag
+
+awk -f svbplot.awk str1=RESULTS: str2=END_OF_RESULT $infile > results.svbplt
+awk -f svbplot.awk str1=LINDAT: str2=END_OF_LINDAT $infile > ldat.svbplt
+awk -f svbplot.awk str1=LINFIT: str2=END_OF_LINFIT $infile > lfit.svbplt
+awk -f svbplot.awk str1=THSPEC: str2=END_OF_THSPEC $infile > thspec.svbplt
+awk -f svbplot.awk str1=THPHOT: str2=END_OF_THPHOT $infile > thphot.svbplt
+awk -f svbplot.awk str1=Sv: str2=END_OF_Sv $infile > SvVK.svbplt
+
+csh SvFvVKfit > SvFvVK.out
+
+grep SvVK: SvFvVK.out >> $infile
+grep FvVK: SvFvVK.out >> $infile
+grep FkVK: SvFvVK.out >> $infile
+grep FvVKdiff: SvFvVK.out >> $infile
+
+python3 svbplot.py
+python3 loggf.py
+python3 SvVK.py
+
+goto stop
+
+error:
+   echo 'Usage: svbplot datafile'
+
+stop:

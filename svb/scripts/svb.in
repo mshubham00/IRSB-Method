@@ -1,0 +1,27 @@
+svb INPUT file Version 2.0
+Do not change anything in this file except the names and numbers
+=====================================================================
+ident      = HV1333
+Period     = 16.2935
+colsys     = V-Rj
+E(B-V)     = 0.06
+Av/E(B-V)  = 3.1
+Ecol/Ebv   = 0.97
+Gamma      = 145.0
+P-factor   = 1.36
+Acc. Term  = 1
+Mass_est   = 8.0
+loggest    = 1.7
+N_iteration= 4
+phase_min1 = 0.0
+phase_max1 = 0.4
+phase_min2 = 0.4
+phase_max2 = 1.0
+photdata   = HV1333.phvvrJxxx
+rvdata     = HV1333.phrv
+rvcurve    = HV1333.rvc
+syntab     = ../../../atmos/anne/vrjm06.dat
+output     = HV1333.out
+logfile    = HV1333.log
+Bisectorfit= 1
+ctrel      = tabular

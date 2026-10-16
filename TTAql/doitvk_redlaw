@@ -1,0 +1,7 @@
+#!/bin/csh -f
+svb << EOT >& TTAql.log
+TTAql.invk2
+EOT
+cp TTAql.out TTAql_vk.out
+svbplot $* TTAql.out
+cat TTAql.log

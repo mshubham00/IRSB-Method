@@ -1,0 +1,13 @@
+gfortran -c drspec.f
+gfortran -c getg2.f
+gfortran -c getg.f
+gfortran -c getidx.f
+gfortran -c gett.f
+gfortran -c int1d.f
+gfortran -c int2d.f
+gfortran -c readin.f
+gfortran -c sixlin.f
+gfortran -c svb_dfit.f
+gfortran -c svb.f
+gfortran -c svbtest.f
+gfortran -c thphot.f

@@ -1,0 +1,172 @@
+svb	0	expand 0.8
+
+		window 2 2 1 1
+
+		data results.svbplt
+		define phmin1 read 3 2
+		define phmax1 read 4 2
+		define phmin2 read 5 2
+		define phmax2 read 6 2
+		ptype 4 3
+		data ldat.svbplt
+		read dr 2
+		read thphot 3
+		read ph 1
+		limits dr thphot
+		points dr thphot if(ph >= $phmin1 && ph <= $phmax1)
+		points dr thphot if(ph >= $phmin2 && ph <= $phmax2)
+
+		ptype 4 1
+		points dr thphot if(ph < $phmin1)
+		points dr thphot if(ph > $phmax1 && ph < $phmin2)
+		points dr thphot if(ph > $phmax2)
+		box
+		xlabel \gDR (m)
+		ylabel \gq\\dphot\\u (arcsec)
+
+		data lfit.svbplt
+		read dr 2
+		read thphot 3
+		read ph 1
+		connect dr thphot
+
+		window 2 2 1 2 
+
+		ptype 4 3
+		data thphot.svbplt
+		read ph 1
+		read thp 2
+		read sthp 3
+		limits -0.1 1.1 thp
+		points ph thp if(ph >= $phmin1 && ph <= $phmax1)
+		points ph thp if(ph >= $phmin2 && ph <= $phmax2)
+
+		ptype 4 1
+		points ph thp if(ph < $phmin1)
+		points ph thp if(ph > $phmax1 && ph < $phmin2)
+		points ph thp if(ph > $phmax2)
+		box
+		xlabel Phase
+		ylabel \gq (arcsec)
+
+		data thspec.svbplt
+		read ph 1
+		read thspec 2
+		connect ph thspec
+
+		window 2 2 2 2 
+		ptype 4 3
+		data thphot.svbplt
+		read ph 1
+		read thp 2
+		read sthp 3
+		read teff 4
+		points dr thphot
+
+		limits -0.1 1.1 teff
+		box 1 2
+		xlabel Phase
+		ylabel T\\deff\\u (K)
+		points ph teff if(ph >= $phmin1 && ph <= $phmax1)
+		points ph teff if(ph >= $phmin2 && ph <= $phmax2)
+		ptype 4 1
+		points ph teff if(ph < $phmin1)
+		points ph teff if(ph > $phmax1 && ph < $phmin2)
+		points ph teff if(ph > $phmax2)
+
+		# window 2 2 2 2 
+		# limits -0.1 1.1 0 4.
+		# box
+		# xlabel Phase
+		# ylabel log(g)
+ 
+		# ptype 4 1
+		# data ldat.svbplt
+		# read ph 1
+		# read logg 6
+		# points ph logg
+
+		window 2 2 2 1
+		limits 0 1 0 1
+
+		data results.svbplt
+		define id read 1 2
+		define colsys read 2 2
+		define Period read 7 2
+		define mM read 8 2
+		define Radius read 10 2
+		define Mbol read 11 2
+		define Mv read 12 2
+		define inlogg read 13 2
+		define logg read 14 2
+		define Mass read 15 2
+		#define regcoeff 16 2
+		define RMS read 17 2
+		define RMSpc read 18 2
+		define Teq read 19 2
+		define gamma read 20 2
+		define intmv read 21 2
+		define magmv read 22 2
+		define intmcol read 23 2
+		define magmcol read 24 2
+		define Ebv read 25 2
+		define Ecol read 26 2
+		define synid read 27 2
+		define nwarn read 28 2
+		define accterm read 29 2
+		define bisec read 30 2
+
+		relocate 0.0 0.95
+		putlabel 6 Star: $id
+		expand 0.6
+
+		relocate 0.0 0.90
+		putlabel 6 Input:
+		relocate 0.0 0.85
+		putlabel 6 log(g) = $inlogg
+		relocate 0.0 0.80
+		putlabel 6 Mass = $Mass M\d\g(
+		relocate 0.0 0.75
+		putlabel 6 <m\dV>\d0 = $intmv
+		relocate 0.0 0.70
+		putlabel 6 <m\dV>\\dmag,0\\u = $magmv
+		relocate 0.0 0.65
+		putlabel 6 <$colsys>\d0 = $intmcol
+		relocate 0.0 0.60
+		putlabel 6 <$colsys>\\dmag,0\\u = $magmcol
+		relocate 0.0 0.55
+		putlabel 6 \gg = $gamma km/s
+		relocate 0.0 0.50
+		putlabel 6 E(B-V) = $Ebv 
+		relocate 0.0 0.45
+		putlabel 6 E($colsys) = $Ecol
+		relocate 0.0 0.40
+		putlabel 6 Period = $Period days
+		relocate 0.0 0.35
+		putlabel 6 Acc. term: $accterm
+		relocate 0.0 0.30
+		putlabel 6 Bisector fit: $bisec
+		relocate 0.0 0.05
+		putlabel 6 Syn. color: $synid
+
+		relocate 0.5 0.90
+		putlabel 6 Output:
+		relocate 0.5 0.85
+		putlabel 6 (m-M)\d0 = $mM
+		relocate 0.5 0.80
+		putlabel 6 <M\\dbol\\u>\d0 = $Mbol
+		relocate 0.5 0.75
+		putlabel 6 <M\dV>\d0 = $Mv
+		relocate 0.5 0.70
+		putlabel 6 Radius = $Radius R\d\g(
+		relocate 0.5 0.65
+		putlabel 6 log(g) = $logg
+		relocate 0.5 0.60
+		putlabel 6 T\\deq\\u = $Teq K
+		relocate 0.5 0.55
+		putlabel 6 RMS = $RMS ($RMSpc %)
+		relocate 0.5 0.50
+		putlabel 6 Warnings: $nwarn
+
+		relocate 0 0
+		putlabel 6 $date

@@ -1,0 +1,24 @@
+Sv-VK:
+Enter input file name: Enter output file name: Do you want to lock alpha or beta (y/n)? Number of points:   133
+alpha:      1.3348 beta:      3.2652 R:0.998974 RMS:  0.01959017
+   +-      0.0053    +-      0.0102
+Do you want to do another fit on these data (y/n)?
+Fv-VK:
+Enter input file name: Enter output file name: Do you want to lock alpha or beta (y/n)? Number of points:   133
+alpha:     -0.1335 beta:      3.8942 R:-.998971 RMS:  0.00210940
+   +-      0.0005    +-      0.0010
+Do you want to do another fit on these data (y/n)?
+Fk-VK:
+Enter input file name: Enter output file name: Do you want to lock alpha or beta (y/n)? Number of points:   133
+alpha:     -0.0335 beta:      3.8942 R:-.984361 RMS:  0.00224293
+   +-      0.0005    +-      0.0010
+Do you want to do another fit on these data (y/n)?
+FvVK-Kerv_linearVVK:
+Enter input file name: Enter output file name: Do you want to lock alpha or beta (y/n)? Number of points:   133
+alpha:      0.0001 beta:     -0.0588 R:0.021286 RMS:  0.00196102
+   +-      0.0005    +-      0.0010
+Do you want to do another fit on these data (y/n)?
+SvVK: 1.3348 3.2652
+FvVK: -0.1335 3.8942
+FkVK: -0.0335 3.8942
+FvVKdiff: 0.0001 0.0005 -0.0588 0.0010

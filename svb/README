@@ -1,0 +1,67 @@
+To install and run the svb program follow the steps described below:
+
+Installation:
+===============
+
+* Unpack the tar-file in a suitable place, preferable under you src
+  directory. It will generate a svb directory with the source code and the
+  necessary assisting files.
+
+* Modify the Makefile to reflect your configuration
+
+* Compile the program with: % make install
+			    % rehash
+
+  This will generate the executable and place it in the bin directory
+  specified in the Makefile. It will also copy the svbinit script to
+  the bin directory.
+
+Use of svb:
+=============
+
+  To use svb plot you will have to have your data in a suitable format
+in a directory.
+
+* Then do: % svbinit
+
+  This will copy a template input file (svb.in) to your working
+  directory and copy a SuperMongo plot macro as well as a plot script
+  (svbplot) which parses the svb output file and feeds it to the
+  SuperMongo script.
+
+* You can create a small script file that runs svb and plots the
+  results. This could look something like this:
+
+> #!/bin/csh -f
+> svb << EOT >& HV1333.log
+> HV1333.in
+> EOT
+> svbplot HV1333.out
+> cat HV1333.log
+
+For svbplot to work properly you will need the scripts smgo, smgohard
+and smgops which generates supermongo plots either on the screen, on the
+printer or in a PostScript file or make your own equivalents. 
+
+
+SuperMongo scripts:
+===================
+
+  For svbplot to run I have included the smgo, smgohard and smgops
+scripts referred to above in the directory sm. Here you will also find a
+graphcap file for sm with all the entries necessary for these three
+scripts. The idea with the scripts is that they execute a SuperMongo
+macro and sends the output in various formats either to the screen
+(smgo) to the printer (smgohard) or to a PostScript file (smgops).
+
+The smgo script requires that you specify the terminal type to
+xterm (i.e. device xterm in your .sm file) for SuperMongo if running
+on an X11 system, otherwise the plot will disappear immediately after
+it has been produced or you might be able to fiddle with the script to
+change the terminal type on the fly. 
+
+Error estimates (Nov.97);
+-------------------------
+The linear regression/fitting is now done with the aide of the Isobe
+et al. FORTRAN source code and the error estimates are computed
+directly by this code as well (sixlin.f).

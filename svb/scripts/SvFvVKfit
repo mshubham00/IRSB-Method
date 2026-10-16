@@ -1,0 +1,51 @@
+#!/bin/csh
+echo "Sv-VK:"
+awk '{if($1<0.8){print $4,$5,"0.01"}}' SvVK.svbplt > SvVK.in
+linreg << EOT
+SvVK.in
+SvVK.out
+n
+n
+EOT
+set Sva = `awk '{if($1=="alpha:"){print $2}}' SvVK.out`
+set Svb = `awk '{if($1=="alpha:"){print $4}}' SvVK.out`
+
+
+echo "Fv-VK:"
+awk '{if($1<0.8){print $4,$6,"0.01"}}' SvVK.svbplt > FvVK.in
+linreg << EOT
+FvVK.in
+FvVK.out
+n
+n
+EOT
+set Fva = `awk '{if($1=="alpha:"){print $2}}' FvVK.out`
+set Fvb = `awk '{if($1=="alpha:"){print $4}}' FvVK.out`
+
+echo "Fk-VK:"
+awk '{if($1<0.8){print $4,$7,"0.01"}}' SvVK.svbplt > FkVK.in
+linreg << EOT
+FkVK.in
+FkVK.out
+n
+n
+EOT
+set Fka = `awk '{if($1=="alpha:"){print $2}}' FkVK.out`
+set Fkb = `awk '{if($1=="alpha:"){print $4}}' FkVK.out`
+
+echo "FvVK-Kerv_linearVVK:"
+awk '{if($1<0.8){print $4,$6-(3.9530-0.1336*$4),"0.01"}}' SvVK.svbplt > FvVKc.in
+linreg << EOT
+FvVKc.in
+FvVKc.out
+n
+n
+EOT
+
+set Fvdiffa = `awk '{if($1=="alpha:"){print $2}}' FvVKc.out`
+set Fvdiffb = `awk '{if($1=="alpha:"){print $4}}' FvVKc.out`
+
+echo "SvVK: "$Sva" "$Svb
+echo "FvVK: "$Fva" "$Fvb
+echo "FkVK: "$Fka" "$Fkb
+echo "FvVKdiff: "$Fvdiffa" "$Fvdiffb

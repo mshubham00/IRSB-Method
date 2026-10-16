@@ -1,0 +1,24 @@
+Dec.20, 2019
+------------
+Bertrand pointed me to these models based on the Kurucz and ALTAS9 codes
+from Castelli et al.
+http://wwwuser.oats.inaf.it/castelli/colors/BCP/
+
+I have downloaded the tables with the revised data and reformatted the
+into the svb inpout format. Unfortunately not the full 2D in logg and
+Teff is covered, so I have to limit the tables to where they make sense.
+Presently i have chosen the low logg area, so starting already from
+logg=0.0, however this does not go to very high temperatures so i ahd to
+stop at Teff=6000K. If I need hotter temperatures I will have to give up
+the low logg bins, so I might have to have two sets of tables, one for
+hot and one for cool stars. I do not expect any star to need both tables
+though so this seems a fairly simple fix of the problem.
+
+Jan.8, 2020
+-----------
+
+  I have made a script for generating tables which have been linearly interpolated in
+FeH. All the interpolations are done with dointerFeH.csh using the awk script
+interFeH.awk. This allows for LMC and SMC use.
+Note that the interpolated tables have the index i added to BCP as they are no longer
+"real" ATLAS 9 outputs.
